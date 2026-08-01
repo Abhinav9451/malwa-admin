@@ -1,0 +1,269 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #eef2f6;
+  --border: #e2e6ec;
+  --border-strong: #cfd6de;
+  --text: #0f1419;
+  --text-2: #3d4753;
+  --muted: #6b7683;
+  --accent: #9a6d1f;
+  --accent-hover: #7f5a17;
+  --accent-soft: #fdf6e6;
+  --accent-ring: rgba(154, 109, 31, 0.25);
+  --sidebar: #10141a;
+  --sidebar-2: #171d25;
+  --sidebar-text: #cbd3dd;
+  --shadow: 0 1px 2px rgba(16, 20, 26, 0.05), 0 8px 24px -12px rgba(16, 20, 26, 0.12);
+}
+
+.dark {
+  --bg: #0a0c10;
+  --surface: #12161c;
+  --surface-2: #171c23;
+  --surface-3: #1d232c;
+  --border: #242b35;
+  --border-strong: #333c48;
+  --text: #e9edf3;
+  --text-2: #c2cad5;
+  --muted: #8b95a3;
+  --accent: #e0b158;
+  --accent-hover: #edc271;
+  --accent-soft: rgba(224, 177, 88, 0.12);
+  --accent-ring: rgba(224, 177, 88, 0.3);
+  --sidebar: #0c0f14;
+  --sidebar-2: #141a21;
+  --sidebar-text: #b9c2ce;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text);
+  --color-ink-2: var(--text-2);
+  --color-muted: var(--muted);
+  --color-gold: var(--accent);
+  --color-gold-hover: var(--accent-hover);
+  --color-gold-soft: var(--accent-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-2: var(--sidebar-2);
+  --color-sidebar-text: var(--sidebar-text);
+  --font-sans: ui-sans-serif, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-size: 14px;
+}
+
+::selection {
+  background: var(--accent-ring);
+}
+
+/* thin, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-surface;
+    box-shadow: var(--shadow);
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-semibold
+           transition-all duration-150 whitespace-nowrap select-none cursor-pointer
+           disabled:opacity-45 disabled:cursor-not-allowed active:scale-[0.985];
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .dark .btn-primary {
+    color: #17130a;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .btn-dark {
+    @apply text-white;
+    background: var(--sidebar);
+  }
+  .btn-dark:hover:not(:disabled) {
+    background: var(--sidebar-2);
+  }
+  .dark .btn-dark {
+    @apply bg-surface-3 text-ink;
+  }
+  .btn-ghost {
+    @apply text-ink-2 hover:bg-surface-3;
+  }
+  .btn-outline {
+    @apply border border-line-strong bg-surface text-ink-2 hover:bg-surface-3;
+  }
+  .btn-wa {
+    @apply text-white;
+    background: #1faa5a;
+  }
+  .btn-wa:hover:not(:disabled) {
+    background: #17904a;
+  }
+  .btn-danger {
+    @apply bg-rose-600 text-white hover:bg-rose-700;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1.5 text-[12px] rounded-md;
+  }
+  .btn-xs {
+    @apply px-2 py-1 text-[11px] rounded-md gap-1;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink
+           placeholder:text-muted outline-none transition;
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+  }
+  select.input {
+    @apply cursor-pointer appearance-none pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236b7683' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+  }
+  .label {
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap;
+  }
+
+  .th {
+    @apply px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-muted;
+  }
+  .td {
+    @apply px-3 py-2.5 align-middle text-[13px] text-ink-2;
+  }
+  .row-hover {
+    @apply transition-colors hover:bg-surface-2;
+  }
+
+  .section-title {
+    @apply font-display text-[17px] font-semibold tracking-tight text-ink;
+  }
+  .kpi-value {
+    @apply font-display text-[22px] font-semibold tracking-tight text-ink;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .link {
+    @apply font-medium underline decoration-dotted underline-offset-2;
+    color: var(--accent);
+  }
+}
+
+/* animations */
+/* Deliberately opacity-only: a filling transform animation would turn the page
+   wrapper into the containing block for any `position: fixed` child. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.anim-fade {
+  animation: fadeIn 0.28s ease both;
+}
+.anim-scale {
+  animation: scaleIn 0.2s ease both;
+}
+.anim-slide {
+  animation: slideIn 0.25s ease both;
+}
+
+/* print: only the marked area */
+@media print {
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border-color: #ddd !important;
+  }
+}
+.print-only {
+  display: none;
+}
