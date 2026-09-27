@@ -19,6 +19,7 @@ import type {
   Settings,
   User,
   Vendor,
+  VendorPayment,
 } from "./types";
 
 /* deterministic PRNG so the demo looks the same on every reload */
@@ -281,6 +282,13 @@ liveProjects.forEach((p) => {
   }
 });
 
+/* ----------------------- vendor payments -------------------------- */
+
+/* Left empty on purpose — existing commitments' paidAmount is an opening
+   balance, not backed by a transaction. New payments build the ledger
+   from here on. */
+const vendorPayments: VendorPayment[] = [];
+
 /* --------------------------- reminders --------------------------- */
 
 const reminders: Reminder[] = [];
@@ -307,7 +315,7 @@ milestones
       kind: "payment",
       title: `${overdue ? "Overdue" : "Payment due"} — ${m.title}`,
       message:
-        `Namaste ${firstName(customer.name)} ji,\n\n` +
+        `Sat Sri Akal ${firstName(customer.name)} ji,\n\n` +
         `Gentle reminder from *Malwa Builders* — payment of *\u20B9${balance.toLocaleString("en-IN")}* ` +
         `for _${m.title}_ at ${project.name} ${overdue ? "was due on" : "is due on"} ${m.dueDate}.\n\n` +
         `Kindly arrange the payment, the receipt will be shared immediately.\n\n— Malwa Builders, Jagraon`,
@@ -389,6 +397,7 @@ export function buildSeedDB(): DB {
     materials,
     vendors,
     commitments,
+    vendorPayments,
     reminders,
     media,
     settings,

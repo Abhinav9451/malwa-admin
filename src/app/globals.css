@@ -263,6 +263,16 @@ body {
     box-shadow: none !important;
     border-color: #ddd !important;
   }
+  .receipt-print-frame {
+    position: static !important;
+    padding: 0 !important;
+    background: none !important;
+  }
+  .receipt-print-card {
+    box-shadow: none !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+  }
 }
 .print-only {
   display: none;

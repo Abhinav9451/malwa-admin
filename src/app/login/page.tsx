@@ -5,11 +5,20 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, KeyRound, Loader2, Lock, Mail } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useStore } from "@/lib/store";
+import { api } from "@/lib/api";
 import { Avatar, cx } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
 
+interface DemoAccount {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  designation: string;
+}
+
 export default function LoginPage() {
-  const { db, ready, user, login } = useStore();
+  const { ready, user, login } = useStore();
   const router = useRouter();
   const toast = useToast();
 
@@ -18,26 +27,31 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
 
   useEffect(() => {
     if (ready && user) router.replace("/dashboard");
   }, [ready, user, router]);
 
-  const submit = (e: React.FormEvent) => {
+  useEffect(() => {
+    api
+      .demoUsers()
+      .then((res) => setDemoAccounts(res.users))
+      .catch(() => setDemoAccounts([])); // backend unreachable — just hide the list
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    // small delay so signing in feels like a real round-trip
-    window.setTimeout(() => {
-      const res = login(email, password);
-      setBusy(false);
-      if (!res.ok) {
-        setError(res.error ?? "Login failed");
-        return;
-      }
-      toast.success("Welcome back", "Signed in to Malwa Builders Admin");
-      router.replace("/dashboard");
-    }, 450);
+    const res = await login(email, password);
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error ?? "Login failed");
+      return;
+    }
+    toast.success("Welcome back", "Signed in to Malwa Builders Admin");
+    router.replace("/dashboard");
   };
 
   return (
@@ -149,44 +163,45 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-8">
-            <div className="mb-2.5 flex items-center gap-2">
-              <KeyRound size={13} className="text-gold" />
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted">Accounts — tap to fill</p>
-            </div>
-            <div className="space-y-1.5">
-              {db.users.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => {
-                    setEmail(u.email);
-                    setPassword(u.password);
-                    setError(null);
-                  }}
-                  className={cx(
-                    "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition",
-                    email === u.email
-                      ? "border-[var(--accent)] bg-gold-soft"
-                      : "border-line bg-surface hover:border-line-strong hover:bg-surface-2",
-                  )}
-                >
-                  <Avatar name={u.name} size={30} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-[13px] font-semibold text-ink">{u.name}</span>
-                      <code className="rounded bg-surface-3 px-1.5 py-0.5 text-[10.5px] text-muted">{u.password}</code>
+          {demoAccounts.length > 0 && (
+            <div className="mt-8">
+              <div className="mb-2.5 flex items-center gap-2">
+                <KeyRound size={13} className="text-gold" />
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted">Accounts — tap to fill</p>
+              </div>
+              <div className="space-y-1.5">
+                {demoAccounts.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => {
+                      setEmail(u.email);
+                      setPassword(u.password);
+                      setError(null);
+                    }}
+                    className={cx(
+                      "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition",
+                      email === u.email
+                        ? "border-[var(--accent)] bg-gold-soft"
+                        : "border-line bg-surface hover:border-line-strong hover:bg-surface-2",
+                    )}
+                  >
+                    <Avatar name={u.name} size={30} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-[13px] font-semibold text-ink">{u.name}</span>
+                        <code className="rounded bg-surface-3 px-1.5 py-0.5 text-[10.5px] text-muted">{u.password}</code>
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11.5px] text-muted">{u.designation}</span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[11.5px] text-muted">{u.designation}</span>
-                  </span>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-muted">
+                Demo accounts, for local testing only. Data is stored in MongoDB via the backend API.
+              </p>
             </div>
-            <p className="mt-3 text-[11px] leading-relaxed text-muted">
-              This panel runs entirely in your browser on sample data. Use the Excel download in
-              Settings to keep a backup.
-            </p>
-          </div>
+          )}
         </div>
       </section>
     </main>

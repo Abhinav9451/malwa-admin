@@ -8,8 +8,12 @@ export type ModuleKey =
   | "projects"
   | "customers"
   | "payments"
+  | "payments_dues"
+  | "payments_receipts"
   | "materials"
   | "vendors"
+  | "vendors_list"
+  | "vendors_commitments"
   | "reminders"
   | "website"
   | "settings";
@@ -180,6 +184,19 @@ export interface Commitment {
   note?: string;
 }
 
+/** One payment we made to a vendor against a Commitment. Mirrors Payment, but money going out. */
+export interface VendorPayment {
+  id: string;
+  receiptNo: string;
+  commitmentId: string;
+  vendorId: string;
+  amount: number;
+  date: string;
+  mode: PaymentMode;
+  ref?: string;
+  note?: string;
+}
+
 export type ReminderStatus = "pending" | "done";
 export type ReminderKind = "payment" | "vendor" | "site" | "custom";
 
@@ -239,6 +256,7 @@ export interface DB {
   materials: Material[];
   vendors: Vendor[];
   commitments: Commitment[];
+  vendorPayments: VendorPayment[];
   reminders: Reminder[];
   media: Media[];
   settings: Settings;

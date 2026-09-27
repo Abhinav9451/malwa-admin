@@ -13,7 +13,7 @@ import { cx } from "./primitives";
  * CSS animation touching `transform` counts even after it finishes. Portalling
  * keeps dialogs pinned to the viewport no matter what the page wrapper does.
  */
-function Portal({ children }: { children: React.ReactNode }) {
+export function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
@@ -21,7 +21,7 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 
 /** Close on Escape and stop the page behind from scrolling while open. */
-function useDialogBehaviour(open: boolean, onClose: () => void) {
+export function useDialogBehaviour(open: boolean, onClose: () => void) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

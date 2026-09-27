@@ -16,11 +16,20 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
   const t = totals(db);
 
   const badge = (key: string): { text: string; tone: string } | null => {
-    if (key === "payments" && t.overdueCount) return { text: String(t.overdueCount), tone: "bg-rose-500 text-white" };
+    if (key === "payments_dues" && t.overdueCount) return { text: String(t.overdueCount), tone: "bg-rose-500 text-white" };
     if (key === "reminders" && t.pendingReminders) return { text: String(t.pendingReminders), tone: "bg-[var(--accent)] text-black" };
     if (key === "materials" && t.lowStock) return { text: String(t.lowStock), tone: "bg-amber-500 text-black" };
     return null;
   };
+
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+  /** The one child whose route best matches the current path — checked longest-href-first,
+   *  so e.g. "/vendors/commitments" wins over its sibling "/vendors" instead of both matching. */
+  const activeChildKey = (children: { key: string; href: string }[]) =>
+    [...children]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((c) => pathname === c.href || pathname.startsWith(`${c.href}/`))?.key ?? null;
 
   const body = (
     <div className="flex h-full flex-col" style={{ background: "var(--sidebar)" }}>
@@ -37,7 +46,52 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-3">
         {NAV.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          if (item.children) {
+            const activeKey = activeChildKey(item.children);
+            return (
+              <div key={item.key} className="pt-1 first:pt-0">
+                <div
+                  className={cx(
+                    "flex items-center gap-2.5 px-2.5 py-1.5 text-[13px] font-medium",
+                    activeKey ? "text-white" : "text-[var(--sidebar-text)]",
+                  )}
+                >
+                  <item.icon size={16.5} className={cx("shrink-0", activeKey ? "text-[var(--accent)]" : "opacity-70")} />
+                  <span className="flex-1 truncate">{item.label}</span>
+                </div>
+                <div className="space-y-0.5">
+                  {item.children.map((child) => {
+                    const active = child.key === activeKey;
+                    const b = badge(child.key);
+                    return (
+                      <Link
+                        key={child.key}
+                        href={child.href}
+                        onClick={onClose}
+                        className={cx(
+                          "relative flex items-center gap-2.5 rounded-lg py-1.5 pl-9 pr-2.5 text-[12.5px] font-medium transition-all",
+                          active ? "text-white" : "text-[var(--sidebar-text)] hover:bg-white/[0.06] hover:text-white",
+                        )}
+                        style={active ? { background: "var(--sidebar-2)" } : undefined}
+                      >
+                        {active && (
+                          <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r" style={{ background: "var(--accent)" }} />
+                        )}
+                        <span className="flex-1 truncate">{child.label}</span>
+                        {b && (
+                          <span className={cx("tabular rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none", b.tone)}>
+                            {b.text}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+
+          const active = isActive(item.href);
           const b = badge(item.key);
           return (
             <Link

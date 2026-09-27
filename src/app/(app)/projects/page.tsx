@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, FileText, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { projectBalance } from "@/lib/selectors";
-import { SCHEDULES } from "@/lib/seed";
 import { addDays, fmtDate, inr, inrShort, toISODate, uid, waLink } from "@/lib/format";
 import { PROJECT_MODES, PROJECT_STATUSES, type Milestone, type Project, type ProjectMode, type ProjectStatus } from "@/lib/types";
 import { downloadExcel } from "@/lib/exporter";
@@ -13,6 +12,7 @@ import { FilterBar, matches } from "@/components/ui/Filters";
 import { Card, KeyVal, PageHeader, Progress, StatusBadge, Tabs } from "@/components/ui/primitives";
 import { ConfirmDialog, Drawer, Modal } from "@/components/ui/Modal";
 import { FormGrid, NumberField, SelectField, TextAreaField, TextField } from "@/components/ui/Form";
+import { StatementModal } from "@/components/Statement";
 import { useToast } from "@/components/ui/Toast";
 
 const MODE_LABEL: Record<ProjectMode, string> = Object.fromEntries(
@@ -37,29 +37,28 @@ function blank(): Project {
   };
 }
 
-/** Build the instalment schedule for a brand new project from its service type. */
+/** A brand new project gets one milestone for the full job value — no
+ *  automatic instalment split. Staff add more milestones by hand only if
+ *  a project actually needs to be billed in parts. */
 function scheduleFor(project: Project): Milestone[] {
-  const plan = SCHEDULES[project.mode];
-  const start = new Date(project.startDate);
-  const span = Math.max(14, (new Date(project.targetDate).getTime() - start.getTime()) / 86400000);
-  const step = span / plan.length;
-
-  return plan.map((s, i) => ({
-    id: `${project.id}_m${i + 1}`,
-    projectId: project.id,
-    title: s.title,
-    amount: Math.round((project.contractValue * s.percent) / 100),
-    dueDate: toISODate(addDays(start, Math.round(step * (i + 1) - step / 2))),
-    paidAmount: 0,
-    status: "pending" as const,
-  }));
+  return [
+    {
+      id: `${project.id}_m1`,
+      projectId: project.id,
+      title: "Full payment",
+      amount: project.contractValue,
+      dueDate: project.targetDate,
+      paidAmount: 0,
+      status: "pending" as const,
+    },
+  ];
 }
 
 function shareMessage(project: Project, customerName: string): string {
   const first = customerName.replace(/^Dr\.\s*/, "").split(" ")[0] || "ji";
   const service = MODE_LABEL[project.mode];
   return (
-    `Namaste ${first} ji,\n\n` +
+    `Sat Sri Akal ${first} ji,\n\n` +
     `Update from *Malwa Builders* on *${project.name}* (${service}).\n\n` +
     `Plans / drawings are ready — please check and confirm.\n\n` +
     `— Malwa Builders, Jagraon`
@@ -77,6 +76,7 @@ export default function ProjectsPage() {
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [statementProjectId, setStatementProjectId] = useState<string | null>(null);
 
   /* the dashboard links here with ?open=<projectId> to jump straight to a site */
   useEffect(() => {
@@ -145,7 +145,7 @@ export default function ProjectsPage() {
         draft.projects.unshift(project);
         draft.milestones.push(...milestones);
       });
-      toast.success("Project added", `${milestones.length} instalments created from the ${MODE_LABEL[project.mode]} schedule.`);
+      toast.success("Project added", `${MODE_LABEL[project.mode]} · ${inr(project.contractValue)} job value.`);
     } else {
       save("projects", project);
       toast.success("Project updated", project.name);
@@ -333,6 +333,9 @@ export default function ProjectsPage() {
                   <MessageCircle size={13} /> Send on WhatsApp
                 </a>
               )}
+              <button className="btn btn-outline btn-sm" onClick={() => setStatementProjectId(openProject.id)}>
+                <FileText size={13} /> Statement
+              </button>
               <button className="btn btn-primary btn-sm" onClick={() => { setEditing(openProject); setViewing(null); }}>
                 <Pencil size={13} /> Edit project
               </button>
@@ -342,6 +345,8 @@ export default function ProjectsPage() {
       >
         {openProject && <ProjectDetail projectId={openProject.id} />}
       </Drawer>
+
+      <StatementModal projectId={statementProjectId} onClose={() => setStatementProjectId(null)} />
     </>
   );
 }

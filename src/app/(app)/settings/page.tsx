@@ -173,7 +173,7 @@ export default function SettingsPage() {
                 <RotateCcw size={14} /> Restore sample data
               </button>
               <p className="pt-1 text-[11.5px] leading-relaxed text-muted">
-                Everything is stored in this browser. Download the Excel backup before clearing your browser data.
+                Everything is stored in MongoDB via the backend API. Download the Excel backup for an offline copy.
               </p>
             </div>
           </Card>

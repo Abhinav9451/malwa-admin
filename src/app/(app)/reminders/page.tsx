@@ -75,7 +75,7 @@ export default function RemindersPage() {
         kind: "payment",
         title: `Overdue — ${r.milestone.title}`,
         message:
-          `Namaste ${r.customerName.split(" ")[0]} ji,\n\n` +
+          `Sat Sri Akal ${r.customerName.split(" ")[0]} ji,\n\n` +
           `Gentle reminder from *Malwa Builders* — ${inr(r.balance)} for _${r.milestone.title}_ at ` +
           `${r.projectName} was due on ${fmtDate(r.milestone.dueDate)} and is now ${Math.abs(r.days)} days overdue.\n\n` +
           `Kindly clear it at the earliest.\n\n— Malwa Builders, Jagraon`,
@@ -338,7 +338,7 @@ function ReminderModal({
           value={form.message}
           onChange={(v) => set("message", v)}
           rows={7}
-          placeholder="Namaste ji, gentle reminder from Malwa Builders…"
+          placeholder="Sat Sri Akal ji, gentle reminder from Malwa Builders…"
         />
       </FormGrid>
     </Modal>

@@ -1,17 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessageCircle, Pencil, Phone, Plus, Trash2, Users2 } from "lucide-react";
+import { FileText, MessageCircle, Pencil, Phone, Plus, Trash2, Users2 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { projectBalance } from "@/lib/selectors";
+import { dueRows, projectBalance } from "@/lib/selectors";
 import { fmtDate, inr, inrShort, maskPhone, telLink, toISODate, uid, waLink } from "@/lib/format";
 import type { Customer } from "@/lib/types";
 import { downloadExcel } from "@/lib/exporter";
 import { Column, DataTable } from "@/components/ui/DataTable";
 import { FilterBar, matches } from "@/components/ui/Filters";
-import { Avatar, Card, KeyVal, PageHeader, StatusBadge } from "@/components/ui/primitives";
+import { Avatar, Badge, Card, KeyVal, PageHeader, StatusBadge } from "@/components/ui/primitives";
 import { ConfirmDialog, Drawer, Modal } from "@/components/ui/Modal";
 import { FormGrid, TextAreaField, TextField } from "@/components/ui/Form";
+import { StatementModal } from "@/components/Statement";
+import { ReceiptModal, type ReceiptData } from "@/components/Receipt";
+import { ActionsMenu } from "@/components/ui/ActionsMenu";
 import { useToast } from "@/components/ui/Toast";
 
 function blank(): Customer {
@@ -34,6 +37,8 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [deleting, setDeleting] = useState<Customer | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [statementProjectId, setStatementProjectId] = useState<string | null>(null);
+  const [statementCustomerId, setStatementCustomerId] = useState<string | null>(null);
 
   const cities = useMemo(
     () => Array.from(new Set(db.customers.map((c) => c.city))).sort(),
@@ -156,7 +161,7 @@ export default function CustomersPage() {
           </a>
           <a
             className="btn btn-ghost btn-xs text-emerald-600"
-            href={waLink(c.phone, `Namaste ${c.name.split(" ")[0]} ji,`)}
+            href={waLink(c.phone, `Sat Sri Akal ${c.name.split(" ")[0]} ji,`)}
             target="_blank"
             rel="noreferrer"
             title="WhatsApp"
@@ -234,12 +239,15 @@ export default function CustomersPage() {
             <>
               <a
                 className="btn btn-wa btn-sm"
-                href={waLink(openCustomer.phone, `Namaste ${openCustomer.name.split(" ")[0]} ji,`)}
+                href={waLink(openCustomer.phone, `Sat Sri Akal ${openCustomer.name.split(" ")[0]} ji,`)}
                 target="_blank"
                 rel="noreferrer"
               >
                 <MessageCircle size={13} /> WhatsApp
               </a>
+              <button className="btn btn-outline btn-sm" onClick={() => setStatementCustomerId(openCustomer.id)}>
+                <FileText size={13} /> Statement
+              </button>
               <button className="btn btn-primary btn-sm" onClick={() => { setEditing(openCustomer); setViewing(null); }}>
                 <Pencil size={13} /> Edit
               </button>
@@ -280,6 +288,13 @@ export default function CustomersPage() {
                     </div>
                     <span className="tabular shrink-0 text-[12.5px] font-semibold">{inrShort(p.contractValue)}</span>
                     <StatusBadge status={p.status} />
+                    <button
+                      className="btn btn-ghost btn-xs shrink-0"
+                      title="Download statement"
+                      onClick={() => setStatementProjectId(p.id)}
+                    >
+                      <FileText size={13} />
+                    </button>
                   </div>
                 ))}
                 {summary(openCustomer.id).projects.length === 0 && (
@@ -287,9 +302,199 @@ export default function CustomersPage() {
                 )}
               </div>
             </div>
+
+            <CustomerLedger customerId={openCustomer.id} />
           </div>
         )}
       </Drawer>
+
+      <StatementModal
+        projectId={statementProjectId}
+        customerId={statementCustomerId}
+        onClose={() => {
+          setStatementProjectId(null);
+          setStatementCustomerId(null);
+        }}
+      />
+    </>
+  );
+}
+
+function CustomerLedger({ customerId }: { customerId: string }) {
+  const { db, update } = useStore();
+  const toast = useToast();
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const customer = db.customers.find((c) => c.id === customerId);
+  const projectIds = db.projects.filter((p) => p.customerId === customerId).map((p) => p.id);
+
+  const payments = db.payments
+    .filter((p) => projectIds.includes(p.projectId))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const dues = dueRows(db, db.settings.reminderWindowDays).filter((r) => projectIds.includes(r.projectId));
+  const [deletingDue, setDeletingDue] = useState<(typeof dues)[number] | null>(null);
+
+  /* Permanently removes this due (and any receipts already recorded against
+     it) — not a reversal, the instalment itself is gone for good. */
+  const deleteMilestone = (row: (typeof dues)[number]) => {
+    update((draft) => {
+      draft.milestones = draft.milestones.filter((m) => m.id !== row.milestone.id);
+      draft.payments = draft.payments.filter((p) => p.milestoneId !== row.milestone.id);
+    });
+    toast.success("Instalment deleted", `${row.milestone.title} was permanently removed.`);
+    setDeletingDue(null);
+  };
+
+  /* Deleting a receipt has to give the money back to its instalment. */
+  const deletePayment = (payment: (typeof payments)[number]) => {
+    update((draft) => {
+      const milestone = draft.milestones.find((m) => m.id === payment.milestoneId);
+      if (milestone) {
+        milestone.paidAmount = Math.max(0, milestone.paidAmount - payment.amount);
+        milestone.status = milestone.paidAmount >= milestone.amount ? "paid" : milestone.paidAmount > 0 ? "partial" : "pending";
+      }
+      draft.payments = draft.payments.filter((p) => p.id !== payment.id);
+    });
+    toast.success("Payment deleted", `${payment.receiptNo} was reversed.`);
+  };
+
+  return (
+    <>
+      <div>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">Payment history</p>
+        <div className="divide-y divide-line rounded-lg border border-line">
+          {payments.map((p) => {
+            const project = db.projects.find((x) => x.id === p.projectId);
+            const milestone = db.milestones.find((m) => m.id === p.milestoneId);
+            return (
+              <div key={p.id} className="flex items-center gap-3 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px] font-semibold text-ink">{p.receiptNo}</p>
+                  <p className="truncate text-[11px] text-muted">
+                    {milestone?.title} · {project?.name} · {fmtDate(p.date)} · {p.mode.toUpperCase()}
+                  </p>
+                </div>
+                <span className="tabular shrink-0 text-[12.5px] font-semibold text-emerald-600">{inr(p.amount)}</span>
+                <ActionsMenu
+                  items={[
+                    {
+                      label: "Download receipt",
+                      icon: <FileText size={13} />,
+                      onClick: () =>
+                        setReceipt({
+                          kind: "customer",
+                          status: "paid",
+                          receiptNo: p.receiptNo,
+                          date: p.date,
+                          amount: p.amount,
+                          mode: p.mode,
+                          ref: p.ref,
+                          note: p.note,
+                          partyLabel: "Received from",
+                          partyName: customer?.name ?? "—",
+                          partyPhone: customer?.phone,
+                          referenceLabel: "Project / Instalment",
+                          referenceValue: `${project?.name ?? "—"} — ${milestone?.title ?? "—"}`,
+                        }),
+                    },
+                    {
+                      label: "Delete payment",
+                      icon: <Trash2 size={13} />,
+                      onClick: () => deletePayment(p),
+                      danger: true,
+                    },
+                  ]}
+                />
+              </div>
+            );
+          })}
+          {payments.length === 0 && (
+            <p className="px-3 py-6 text-center text-[12.5px] text-muted">No payments yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">Outstanding milestones</p>
+        <div className="divide-y divide-line rounded-lg border border-line">
+          {dues.map((r) => {
+            return (
+              <div key={r.milestone.id} className="flex items-center gap-3 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px] font-semibold text-ink">{r.milestone.title}</p>
+                  <p className="truncate text-[11px] text-muted">
+                    {r.projectName} · due {fmtDate(r.milestone.dueDate)}
+                  </p>
+                </div>
+                <span className="tabular shrink-0 text-[12.5px] font-semibold text-rose-600">{inr(r.balance)}</span>
+                {r.bucket === "overdue" ? (
+                  <Badge tone="red" dot>Overdue</Badge>
+                ) : r.bucket === "due_soon" ? (
+                  <Badge tone="amber" dot>Due soon</Badge>
+                ) : (
+                  <Badge tone="blue" dot>Upcoming</Badge>
+                )}
+                <ActionsMenu
+                  items={[
+                    {
+                      label: "Send reminder",
+                      icon: <MessageCircle size={13} />,
+                      href: customer
+                        ? waLink(
+                            customer.phone,
+                            `Sat Sri Akal ${customer.name.split(" ")[0]} ji,\n\nGentle reminder from Malwa Builders — ${inr(r.balance)} for "${r.milestone.title}" at ${r.projectName} is due on ${fmtDate(r.milestone.dueDate)}.\n\nKindly arrange the payment.\n\n— Malwa Builders, Jagraon`,
+                          )
+                        : undefined,
+                    },
+                    {
+                      label: "Download receipt",
+                      icon: <FileText size={13} />,
+                      onClick: () =>
+                        setReceipt({
+                          kind: "customer",
+                          status: "proforma",
+                          receiptNo: "PROFORMA",
+                          date: r.milestone.dueDate,
+                          amount: r.balance,
+                          partyLabel: "Received from",
+                          partyName: customer?.name ?? "—",
+                          partyPhone: customer?.phone,
+                          referenceLabel: "Project / Instalment",
+                          referenceValue: `${r.projectName} — ${r.milestone.title}`,
+                        }),
+                    },
+                    {
+                      label: "Delete",
+                      icon: <Trash2 size={13} />,
+                      onClick: () => setDeletingDue(r),
+                      danger: true,
+                    },
+                  ]}
+                />
+              </div>
+            );
+          })}
+          {dues.length === 0 && (
+            <p className="px-3 py-6 text-center text-[12.5px] text-muted">Nothing outstanding.</p>
+          )}
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={!!deletingDue}
+        onClose={() => setDeletingDue(null)}
+        onConfirm={() => deletingDue && deleteMilestone(deletingDue)}
+        title="Permanently delete this instalment?"
+        message={
+          <>
+            <strong>{deletingDue?.milestone.title}</strong> will be removed for good, along with any receipts
+            already recorded against it. This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete permanently"
+      />
+
+      <ReceiptModal data={receipt} onClose={() => setReceipt(null)} />
     </>
   );
 }
